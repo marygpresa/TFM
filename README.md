@@ -1,7 +1,8 @@
 # TFM
 Bioinformatics thesis project
 
-First attempt was using HiPathia to perform a mechanistic analysis on a cohort of more than 3000 RNAseq samples to study the effect of the inhibition of METTL3 in cellular pathways in AML.
+Option A: AML
+First approach was using HiPathia to perform a mechanistic analysis on a cohort of more than 3000 RNAseq samples to study the effect of the inhibition of METTL3 in cellular pathways in AML.
 
 Some opportunities/obstacles:
 
