@@ -6,14 +6,16 @@ updateR() # I am using R 4.5.1
 if (!requireNamespace("BiocManager", quietly = TRUE))
 install.packages("BiocManager")
 
-BiocManager :: install(c("org.Hs.eg.db","edgeR","ComplexHeatmap","SummarizedExperiment","TCGAbiolinks","hpAnnot"))
+BiocManager :: install(c("org.Hs.eg.db","edgeR","ComplexHeatmap","SummarizedExperiment","TCGAbiolinks","hpAnnot","sva"))
 
 
 library(limma)
 library(dplyr)
-library(tidyr)
+library(tidyr) # melt and others
+library(reshape2) # for melt
 library(edgeR)
-library(ComplexHeatmap)
+library(ComplexHeatmap) #heatmaps
+library(circlize) #heatmaps
 library(SummarizedExperiment)
 library(Seurat)
 library(ggplot2)
@@ -222,29 +224,42 @@ dim(fc) #941 539, not working, they are probably NAs but will continue
 
 # Get paths with max fc (the ones that should've completely turn off with the KO, x==0)
 ko_egfr_total <- rownames(fc[apply(fc,1,function(x) all(x==0)),])
-length(ko_egfr_total) # 23 pathways
+ko_egfr_total <- ko_egfr_total[ko_egfr_total %in% rownames(fc)]
+length(ko_egfr_total) # 22 pathways
 # This means those paths depend completely on EGFR activity so there will be no bypass through other genes that might
 # influence them if EGFR is inhibited, so we are not interested in them and will remove them.
-fc<-fc[!rownames(fc)%in%ko_egfr_total,]
-fc<-log2(fc)
+fcoff<-fc[!rownames(fc)%in%ko_egfr_total,]
+fcoff<-log2(fcoff) #log2 fold change
 
 #Find any FC>2 on any sample (person) (significant changes)
-sig_change <- fc[apply(fc,1,function(x) any(x>2|x< -2)),,drop=F]
+sig_change <- fcoff[apply(fcoff,1,function(x) any(x>2|x< -2)),,drop=F]
 rownames(sig_change)
 dim(sig_change) #371 539
+View(sig_change) #lots of NAs means not relevant for tumor, they come from ko_vals / tumor_vals where tumor_vals = 0
+sig_change <- sig_change[!is.na(sig_change[,1]),] #remove NAs
+dim(sig_change) #35 539 means 35 potential bypass pathways
 
-#plot
+#plots
+# 22 EGFR-dependent pathways in Lung Cancer have FC=0 so can't graph that numerically
+df <- data.frame(
+  Pathway = ko_egfr_total,
+  Status = rep("EGFR-dependent (turned off)", length(ko_egfr_total))
+)
+
+# Lollipop-style plot
+ggplot(df, aes(x = Status, y = reorder(Pathway, Pathway))) +
+  geom_point(color = "tomato", size = 4) +
+  geom_segment(aes(x = 0, xend = 1, y = Pathway, yend = Pathway), color = "grey") +
+  xlab("") + ylab("") +
+  ggtitle("EGFR-dependent Pathways Completely Turned Off") +
+  theme_minimal() +
+  theme(axis.text.x = element_blank(),
+        axis.ticks.x = element_blank())
+
+
+
+#Fold-change distribution of pathways with significant change after inhibiting EGFR in Lung Cancer"
 cam_melt <- melt(sig_change)
-
-violinplot_fc <- ggplot(cam_melt, aes(x=Var1, y=value)) + geom_violin(width=0.1) + 
-                        theme(axis.title.x=element_blank(), 
-                        axis.text.x=element_text(angle = 60,vjust = 1,hjust = 1),
-                        plot.margin = unit(c(0.2,0.2,0.2,1.2),"cm"),
-                        plot.title = element_text(hjust = 0.5)) +
-                        ylab("log(FC)") +
-                        ggtitle("Fold-change distribution of pathways affected in Lung Cancer")
-
-print(violinplot_fc)
 
 boxplot_fc <- ggplot(cam_melt, aes(x=Var1, y=value)) + geom_boxplot(width=0.1) + 
   theme(axis.title.x=element_blank(), 
@@ -252,13 +267,52 @@ boxplot_fc <- ggplot(cam_melt, aes(x=Var1, y=value)) + geom_boxplot(width=0.1) +
         plot.margin = unit(c(0.2,0.2,0.2,1.2),"cm"),
         plot.title = element_text(hjust = 0.5)) +
   ylab("log(FC)") +
-  ggtitle("Fold-change distribution of pathways affected in Lung Cancer")
-
+  ggtitle("Fold-change distribution of pathways with significant change after inhibiting EGFR in Lung Cancer")
 print(boxplot_fc)
 
 
-#----------------------PATHWAY ANNOTATION------------------------------
+#cap extreme values for visualization only (there are logFCs of 30 and squeeze the graphs to make them fit)
+cam_melt$logFC_capped <- pmin(pmax(cam_melt$value, -10), 10)
+# Boxplot using the capped values
+ggplot(cam_melt, aes(x = Var1, y = logFC_capped, fill = Var1)) +
+  geom_boxplot() +
+  coord_flip() +
+  theme_minimal() +
+  ylab("log2(Fold Change, capped at ±10)") +
+  xlab("Pathway")
 
-ls("package:hpAnnot")
-data("annofuns_GO_hsa", package = "hpAnnot")
 
+# to avoid caping values, graph changing scale gradually
+ggplot(cam_melt, aes(x = Var1, y = value, fill = Var1)) +
+  geom_boxplot() +
+  coord_flip() +
+  scale_y_continuous(trans = "pseudo_log") +
+  theme_minimal() +
+  xlab("Pathway") +
+  ylab("log2(Fold Change)") +
+  labs(fill = "Pathway")  # rename legend title
+
+
+
+#-------------------------
+# EGFR ANALYSIS in context TUMOR vs NORMAL
+# Tumor vs Normal volcano
+tumor_df <- data.frame(
+  logFC = comp$logFC,
+  negLogP = -log10(comp$p.value),
+  Pathway = comp$path.names
+)
+
+tumor_df$EGFR_dep <- ifelse(tumor_df$Pathway %in% ko_egfr_total, "EGFR-dependent", "Other")
+
+p1 <- ggplot(tumor_df, aes(x = logFC, y = negLogP, color = EGFR_dep)) +
+  geom_point(alpha = 0.6) +
+  scale_color_manual(values = c("Other"="grey", "EGFR-dependent"="red")) +
+  theme_minimal() +
+  labs(title = "Tumor vs Normal", x = "log2 Fold Change", y = "-log10(p-value)")
+
+
+
+
+
+# EGFR analysis in context tumor KO vs tumor
