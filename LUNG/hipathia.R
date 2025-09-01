@@ -398,7 +398,7 @@ egfr_dependant_plot <- ggplot(expr_long_off, aes(x = Pathway, y = Expression, fi
                         ) +
                       labs(
                         title = "EGFR-dependent Pathways",
-                        y = "Pathway Expression",
+                        y = "Pathway Activity",
                         x = "Pathway"
                         )
 
