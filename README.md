@@ -11,7 +11,8 @@ in patient samples. The analysis integrates **pathway activity modeling (HiPathi
 and pathway dysregulation.
 
 
-
+*Abstract*
+This study aimed to evaluate the differential activity of signaling pathways in lung adenocarcinoma (LUAD) and their relationship with somatic mutations after in silico silencing of EGFR. Transcriptomic and mutational data from TCGA-LUAD was analyzed determining pathway activity with HiPathia, and assessing selective pressures on genes using the dNdScv model. The FoxO signaling pathway emerged as a potential bypass to EGFR inhibition, suggesting its role in therapeutic resistance. Conversely, the oxytocin signaling pathway, mediated by CDKN1A/p21, showed significant and beneficial activity for disease outcomes. This result was reinforced by the identification of genes under positive selection, including EGFR, through dN/dS analysis. Notably, the L858R missense mutation provided an adaptive advantage, correlating directly with oxytocin CDKN1A pathway activation and suggesting improved response to EGFR silencing. The integration of functional and evolutionary computational approaches demonstrated effectiveness in directly linking somatic mutations with signaling pathways. These results highlight novel mechanisms of resistance and open new perspectives for the development of personalized therapeutic strategies in LUAD.
 
 
 Attempt for AML consisted in (didn't choose this approach at the end but I leave in this repository relevant data for anyone interested):
