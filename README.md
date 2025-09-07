@@ -1,4 +1,4 @@
-# TFM
+# TFM Trabajo de Fin de Máster (Master's Thesis Project)
 Bioinformatics thesis project
 
 Analysis in lung cancer (LUAD-TCGA)
