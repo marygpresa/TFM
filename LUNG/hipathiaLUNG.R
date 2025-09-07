@@ -12,7 +12,6 @@ BiocManager :: install(c("org.Hs.eg.db","edgeR","ComplexHeatmap","SummarizedExpe
 library(limma)
 library(dplyr)
 library(tidyr) # melt and others
-library(reshape2) # for melt
 library(edgeR)
 library(ComplexHeatmap) #heatmaps
 library(circlize) #heatmaps
@@ -26,7 +25,7 @@ library(DT)
 library(biomaRt)
 library(sva) #for combat, correcting batch effect
 library(hipathia)
-library(reshape2) #plots but shouldn't be necessary since it is masked in tidyr
+library(reshape2) #for melt and plots but shouldn't be necessary since it is masked in tidyr
 library(hpAnnot)
 library(patchwork) # Arrange side by side plots
 library(grid)  # for unit()
@@ -263,7 +262,7 @@ ggplot(df, aes(x = Status, y = reorder(Pathway, Pathway))) +
 
 #Fold-change distribution of pathways with significant change after inhibiting EGFR in Lung Cancer"
 cam_melt <- melt(sig_change)
-
+View(cam_melt)
 boxplot_fc <- ggplot(cam_melt, aes(x=Var1, y=value)) + geom_boxplot(width=0.1) + 
   theme(axis.title.x=element_blank(), 
         axis.text.x=element_text(angle = 60,vjust = 1,hjust = 1),
@@ -274,7 +273,7 @@ boxplot_fc <- ggplot(cam_melt, aes(x=Var1, y=value)) + geom_boxplot(width=0.1) +
 print(boxplot_fc)
 
 
-#cap extreme values for visualization only (there are logFCs of 30 and squeeze the graphs to make them fit)
+#cap extreme values for visualization only (there are logFCs really high and squeeze the graphs to make them fit)
 cam_melt$logFC_capped <- pmin(pmax(cam_melt$value, -10), 10)
 # Boxplot using the capped values
 ggplot(cam_melt, aes(x = Var1, y = logFC_capped, fill = Var1)) +
@@ -294,7 +293,7 @@ bypass_plot <- ggplot(cam_melt, aes(x = Var1, y = value, fill = Var1)) +
                 xlab("Pathway") +
                 ylab("log2(Fold Change)") +
                 labs(fill = "Pathways")  # rename legend title
-
+bypass_plot
 save(bypass_plot, file = bypass_plot.png)
 #---------------------------
 # comparison of all groups plots and tables
@@ -336,7 +335,7 @@ sig_change_table <- data.frame(
 
 # Combine both tables
 all_fc_table <- rbind(ko_egfr_total_table, sig_change_table)
-
+View(sig_change_table)
 # Sort by Max_FC descending
 all_fc_table <- all_fc_table[order(-all_fc_table$Max_FC), ]
 write.csv(all_fc_table, file = "all_fc_table.csv", row.names = FALSE)
@@ -345,11 +344,15 @@ write.csv(all_fc_table, file = "all_fc_table.csv", row.names = FALSE)
 View(all_fc_table) #table with relevant pathways
 dim(all_fc_table) #57 paths
 dim(tumor_vs_normal_sig) #1516 paths
-table(all_fc_table%in% tumor_vs_normal_sig$Pathway)
+table(all_fc_table%in% tumor_vs_normal_sig$Pathway) #54 TRUE 3 FALSE
 # this means all but 3 (3 false) significant pathways according to FC after KO, were also significant pathways vs normal
+setdiff(all_fc_table$Pathway, tumor_vs_normal_sig$Pathway)
+#FoxO signaling pathway
+#ErbB signaling pathway
+#Pancreatic cancer
 
 #--------------------------------------------------------------------------
-#PLOTS of expression matrix befor and after KO
+#PLOTS of expression matrix before vs after KO
 #--------------------------------------------------------------------------
 #Pathways for each group
 turned_off_paths <- ko_egfr_total_table$Pathway
@@ -408,6 +411,6 @@ save(egfr_dependant_plot, file = "egfr_dependant_plot.png")
 
 
 # ---- Significantly changed pathways ----
-##pending,not completely necessary to visualize expression range is too wide so conclusion can be taken from fc plot
+##not completely necessary to visualize expression range is too wide so conclusion can be taken from fc plot
 
 
