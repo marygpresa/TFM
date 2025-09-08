@@ -84,8 +84,8 @@ all(rownames(clinical)==colnames(mat)) # all samples are in same order
 # Conexión a Ensembl
 mart <- useEnsembl(biomart = "genes", dataset = "hsapiens_gene_ensembl")
 
-# Limpiar las versiones del Ensembl ID en tu matriz (en mi caso los nombres de genes en la matriz tenian codgigoEnsembl.version)
-# al tener la version puede no ser compatible con otras rutas en la anotacion, por lo tanto las eliminare de los ids
+# Clean the Ensembl ID versions in the matrix (in my case, the gene names in the matrix had EnsemblID.version)
+# Having the version may make them incompatible with other annotation paths, so I will remove the versions from the IDs
 rownames(mat) <- gsub("\\..*", "", rownames(mat))
 rownames(mat)
 
