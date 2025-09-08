@@ -2,7 +2,7 @@ load("/Users/mariagranados/TFM/LUNG/dndsout.RData")
 load("/Users/mariagranados/TFM/LUNG/mats.RData")
 load("/Users/mariagranados/TFM/LUNG/hipathia.RData")
 load("/Users/mariagranados/TFM/LUNG/ko_egfr.RData")
-load("/Users/mariagranados/TFM/genes_info.RData")
+load("/Users/mariagranados/TFM/LUNG/genes_info.RData")
 load("/Users/mariagranados/TFM/dndsout.RData")
 
 
@@ -71,6 +71,7 @@ colnames(sig_change_short)
 sig_change_unique <- sig_change_short
 colnames(sig_change_unique) <- substr(colnames(sig_change), 1, 12)
 colnames(sig_change_unique) <- make.unique(colnames(sig_change_unique)) 
+View(sig_long)
 
 sig_long <- sig_change_unique %>%
   as.data.frame() %>%
@@ -87,6 +88,7 @@ mut_pathways <- inner_join(
   relationship = "many-to-many"
 )
 View(mut_pathways)
+write.csv(mut_pathways, file = "egfr_missense_mutations_pathways/sample.csv", row.names = FALSE)
 
 
 # Final table with mutations per pathway indicating #samples per each 
