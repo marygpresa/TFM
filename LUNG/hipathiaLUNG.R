@@ -212,7 +212,7 @@ length(no_change) # 1140 out of the 1876 paths don't change (x==1)
 #remove them
 fc<-fc[!rownames(fc)%in%no_change,]
 dim(fc) #941 539
-#We have now 941 pathways with fc != 1
+#We have now 941 pathways with x != 1
 #Nevertheless 1876-1140 = 736 so the are extra pathways
 
 # lets check again:
