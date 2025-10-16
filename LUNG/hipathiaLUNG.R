@@ -212,7 +212,7 @@ length(no_change) # 1140 out of the 1876 paths don't change (x==1)
 #remove them
 fc<-fc[!rownames(fc)%in%no_change,]
 dim(fc) #941 539
-#We have now 941 pathways with x != 1
+#We have now 941 pathways with fc != 1
 #Nevertheless 1876-1140 = 736 so the are extra pathways
 
 # lets check again:
@@ -322,7 +322,7 @@ write.csv(ko_egfr_sig, file = "ko_egfr_sig.csv", row.names = FALSE)
 # Completely turned off pathways
 ko_egfr_total_table <- data.frame(
   Pathway = ko_egfr_total,
-  Max_FC = apply(fc[ko_egfr_total, , drop=FALSE], 1, function(x) max(abs(x), na.rm=TRUE)),
+  Max_abs_FC = apply(fc[ko_egfr_total, , drop=FALSE], 1, function(x) max(abs(x), na.rm=TRUE)),
   Description = "Completely turned off"
 )
 
@@ -409,6 +409,12 @@ egfr_dependant_plot <- ggplot(expr_long_off, aes(x = Pathway, y = Expression, fi
 egfr_dependant_plot
 save(egfr_dependant_plot, file = "egfr_dependant_plot.png")
 
+
+# ---- Significantly changed pathways ----
+##pending,not completely necessary to visualize expression range is too wide so conclusion can be taken from fc plot
+
+install.packages("renv")
+renv::init()
 
 # ---- Significantly changed pathways ----
 ##not completely necessary to visualize expression range is too wide so conclusion can be taken from fc plot
