@@ -54,7 +54,8 @@ GDCdownload(query_somatic)
 maf <- GDCprepare(query_somatic)
 View(maf)
 colnames(maf)
-
+dim(maf)
+length(unique(maf$Tumor_Sample_Barcode))
 table(maf$Variant_Classification)
 
 # need to filter conttiguous mutations within a sample (not single nucleotide)
@@ -187,4 +188,3 @@ ggplot(mut_counts_df, aes(x = Impact, y = Count, fill = Impact)) +
   labs(title = "Mutation Spectrum in LUAD (dNdScv)")
 
 save(mutations,dndsout, file = "dndsout.RData")
-
