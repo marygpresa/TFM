@@ -1,4 +1,4 @@
-# Descarga de datos
+# Download data
 install.packages("installr")
 library(installr)
 updateR() # I am using R 4.5.1
@@ -415,8 +415,4 @@ save(egfr_dependant_plot, file = "egfr_dependant_plot.png")
 
 install.packages("renv")
 renv::init()
-
-# ---- Significantly changed pathways ----
-##not completely necessary to visualize expression range is too wide so conclusion can be taken from fc plot
-
 
