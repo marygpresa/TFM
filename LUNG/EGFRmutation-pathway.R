@@ -124,7 +124,7 @@ View(clinical_data)
 #table with metadata, pathways and somatic mutations
 mut_pathways_meta <- inner_join(
   mut_pathways,
-  clinical_data %>% select(submitter_id, age_at_diagnosis, gender, exposure_type),
+  clinical_data %>% select(submitter_id, age_at_diagnosis, gender, exposure_type, ajcc_pathologic_stage),
   by = c("Sample" = "submitter_id"),
   relationship = "many-to-many"
 )
@@ -136,7 +136,8 @@ View(mut_pathways_meta)
 colnames(mut_pathways_meta)
 
 #FC plot
-library(reshape2)
+View(sig_change)
+# Convert wide table to long format
 cam_melt <- melt(sig_change)
 bypass_plot <- ggplot(cam_melt, aes(x = Var1, y = value, fill = Var1)) +
   geom_boxplot() +
@@ -146,15 +147,43 @@ bypass_plot <- ggplot(cam_melt, aes(x = Var1, y = value, fill = Var1)) +
   xlab("Pathway") +
   ylab("log2(Fold Change)") +
   labs(fill = "Pathways")  # rename legend title
+print(bypass_plot)
 
+# are we actually only seing 3-8 relevant patients for FoxO?
+# Threshold for “strong change”
+threshold <- 2
 
-colnames(cam_melt)
-View(cam_melt)
-colnames(sig_change)
-View(sig_change)
-View(clinical_data)
-View(clinical)
+# Compute number of patients per pathway exceeding threshold
+sig_df <- as.data.frame(sig_change)
+sig_df$Pathway <- rownames(sig_change)
+patient_counts <- sig_df %>%
+  mutate(Pathway = rownames(.)) %>%
+  rowwise() %>%
+  mutate(NumPatients = sum(c_across(-Pathway) > threshold | c_across(-Pathway) < -threshold, na.rm = TRUE)) %>%
+  ungroup() %>%
+  arrange(desc(NumPatients))
 
+ggplot(patient_counts, aes(x = reorder(Pathway, NumPatients), y = NumPatients, fill = NumPatients)) +
+  geom_col() +
+  coord_flip() +
+  scale_fill_gradient(low = "lightblue", high = "darkblue") +
+  labs(title = "Number of Patients with Strong log2(FC) per Pathway",
+       x = "Pathway",
+       y = "Number of Patients",
+       fill = "Patients") +
+  theme_minimal(base_size = 12)
+
+foxo_counts <- subset(patient_counts, grepl("FoxO signaling pathway", Pathway))
+ggplot(foxo_counts, aes(x = reorder(Pathway, NumPatients), y = NumPatients, fill = NumPatients)) +
+  geom_col() +
+  coord_flip() +
+  scale_fill_gradient(low = "lightblue", high = "darkblue") +
+  labs(title = "Number of Patients with Strong log2(FC) per Pathway",
+       x = "Pathway",
+       y = "Number of Patients",
+       fill = "Patients") +
+  theme_minimal(base_size = 12)
+# yep just three for FC>2 and 8 FC>1 but for oxytocin if about 400 patients affected
 
 # comparing FC paths with metadata info
 grouping_FC <- cam_melt %>%
@@ -162,7 +191,6 @@ grouping_FC <- cam_melt %>%
             by = c("Var2" = "barcode"))
 View(grouping_FC)
 
-library(ggplot2)
 
 bypass_plot <- ggplot(grouping_FC, aes(x = Var1, y = value, fill = gender)) +
   geom_boxplot() +
@@ -174,9 +202,9 @@ bypass_plot <- ggplot(grouping_FC, aes(x = Var1, y = value, fill = gender)) +
   labs(fill = "Gender")
 print(bypass_plot)
 
-#will filter for only significant values (><2 FC) for better visualisation
+#will filter for only significant values (><2 FC) for better visualization
 group_FC_filtered <- grouping_FC %>%
-  filter(abs(value) > 2) 
+  filter(abs(value) > 1) 
 
 # age in years not days
 group_FC_filtered <- group_FC_filtered %>%
@@ -226,6 +254,36 @@ ggplot(group_FC_plot, aes(x = age_years, y = value_plot, color = gender)) +
   labs(color = "Gender") +
   scale_y_continuous(trans = "pseudo_log") +
   facet_wrap(~ Var1, scales = "free_y") 
+#almost all are foxO so will do one as representative
+
+foxoFC <- subset(group_FC_plot, Var1 == "FoxO signaling pathway: FBXO32")
+#all foxO results subset
+foxoFC_temp <- subset(group_FC_plot, grepl("FoxO signaling pathway", Var1))
+#avoiding patient duplicates, keep only unique sample IDs (Var2)
+foxoFC <- foxoFC_temp[!duplicated(foxoFC_temp$Var2), ]
+View(foxoFC)
+table(clinical$ajcc_pathologic_stage[clinical$barcode %in% foxoFC$Var2])
+
+# agrego stage
+foxoFC_stage <- foxoFC %>%
+  left_join(
+    clinical %>% select(barcode, ajcc_pathologic_stage),
+    by = c("Var2" = "barcode")
+  )
+View(foxoFC_stage)
+ggplot(foxoFC, aes(x = gender, y = age_years, fill = gender)) +
+  geom_boxplot() +
+  geom_jitter(aes(color = gender),width = 0.2, alpha = 0.6) +
+  theme_minimal() +
+  ylab("Age (years)") +
+  xlab("Sex") 
+
+ggplot(foxoFC, aes(x = gender, y = value_plot, fill = gender)) +
+  geom_boxplot() +
+  geom_jitter(width = 0.2, alpha = 0.6) +
+  theme_minimal() +
+  ylab("log2(Fold Change)") +
+  xlab("Sex") 
 
 
 #boxplots highlight dispersion
@@ -235,7 +293,7 @@ ggplot(group_FC_plot, aes(x = gender, y = value_plot, fill = gender)) +
   facet_wrap(~ Var1, scales = "free_y") +
   theme_minimal() +
   ylab("log2(Fold Change)") +
-  xlab("Gender")
+  xlab("Sex")
 
 save.image(file = "EGFRmutation-pathway.RData")
 load("EGFRmutation-pathway.RData")
@@ -251,7 +309,7 @@ ggplot(oxytocin_pathway, aes(x = age_years, y = value_plot, color = gender)) +
   xlab("Age at diagnosis (years)") +
   ylab("log2(Fold Change)") +
   labs(color = "Gender") +
-  ggtitle("Oxytocin Signaling Pathway: FC vs Age by Gender") +
+  ggtitle("Oxytocin Signaling Pathway: FC vs Age by Sex") +
   theme(plot.title = element_text(hjust = 0.5))
 # plot shows no relation FC-age
 
@@ -300,7 +358,7 @@ oxytocin_long <- oxytocin_long[-1, ] #removing first row with column title
 
 #add clinical data
 oxytocin_long <- oxytocin_long %>%
-  left_join(clinical %>% select(barcode, gender, age_at_diagnosis),
+  left_join(clinical %>% select(barcode, gender, age_at_diagnosis,ajcc_pathologic_stage),
             by = c("Sample" = "barcode"))%>%
   mutate(age_years = age_at_diagnosis / 365.25)
 View(oxytocin_long)
@@ -319,6 +377,111 @@ ggplot(oxytocin_long, aes(x = Condition, y = value, color = gender)) +
   theme(plot.title = element_text(hjust = 0.5))
 
 View(oxytocin_post)
+
+
+
+# adding expression after KO to oxytocin table
+oxytocin_post_long <- data.frame(
+  Sample_full = colnames(oxytocin_post),
+  Expr_post_KO_oxy = as.numeric(as.character(oxytocin_post[1, ]))
+)
+
+#trim sample name to match
+oxytocin_post_long <- oxytocin_post_long %>%
+  mutate(Sample = sapply(strsplit(Sample_full, "-"), function(x) paste(x[1:3], collapse = "-")))
+
+# avoid duplicates
+oxytocin_post_long <- oxytocin_post_long %>%
+  distinct(Sample, .keep_all = TRUE)
+View(oxytocin_post_long)
+
+# merge with mut_pathways_meta
+mut_pathways_meta <- mut_pathways_meta %>%
+  left_join(oxytocin_post_long %>% select(Sample, Expr_post_KO_oxy),
+            by = "Sample")
+
+View(mut_pathways_meta)
+write.csv(mut_pathways_meta, file = "egfr_missense_mutations_pathways_metadata.csv", row.names = FALSE)
+
+# pie charts
+# gender
+gender_counts <- mut_pathways_meta %>%
+  filter(aachange == "L858R", Pathway == "Oxytocin signaling pathway: CDKN1A") %>%
+  count(gender) %>%
+  mutate(percent = 100 * n / sum(n))
+
+ggplot(gender_counts, aes(x = "", y = n, fill = gender)) +
+  geom_col(width = 1) +
+  coord_polar(theta = "y") +
+  geom_text(aes(label = paste0(round(percent, 1), "%")),
+            position = position_stack(vjust = 0.5),
+            color = "white",
+            size = 5) +
+  labs(
+    title = "Gender distribution for L858R (Oxytocin signaling pathway: CDKN1A)",
+    x = NULL, y = NULL, fill = "Gender"
+  ) +
+  theme_void()
+
+# tobacco pie chart
+tobacco_counts <- mut_pathways_meta %>%
+  filter(aachange == "L858R",
+         Pathway == "Oxytocin signaling pathway: CDKN1A") %>%
+  count(exposure_type) %>%
+  mutate(percent = 100 * n / sum(n))
+
+ggplot(tobacco_counts, aes(x = "", y = n, fill = exposure_type)) +
+  geom_col(width = 1) +
+  coord_polar(theta = "y") +
+  geom_text(aes(label = paste0(round(percent, 1), "%")),
+            position = position_stack(vjust = 0.5),
+            color = "white",
+            size = 5) +
+  labs(
+    title = "Tobacco Use in L858R (Oxytocin signaling pathway: CDKN1A)",
+    x = NULL, y = NULL, fill = "Smoker"
+  ) +
+  theme_void()
+
+# stage
+stage_counts <- mut_pathways_meta %>%
+  filter(aachange == "L858R",
+         Pathway == "Oxytocin signaling pathway: CDKN1A") %>%
+  count(ajcc_pathologic_stage) %>%
+  mutate(percent = 100 * n / sum(n))
+
+ggplot(stage_counts, aes(x = "", y = n, fill = ajcc_pathologic_stage)) +
+  geom_col(width = 1) +
+  coord_polar(theta = "y") +
+  geom_text(aes(label = paste0(round(percent, 1), "%")),
+            position = position_stack(vjust = 0.5),
+            color = "white",
+            size = 5) +
+  labs(
+    title = "Pathologic Stage in L858R (Oxytocin signaling pathway: CDKN1A)",
+    x = NULL, y = NULL, fill = "Stage"
+  ) +
+  theme_void()
+
+
+# age - gender
+age_gender <- mut_pathways_meta %>%
+  filter(aachange == "L858R",
+         Pathway == "Oxytocin signaling pathway: CDKN1A")
+
+ggplot(age_gender, aes(x = gender, y = age_at_diagnosis, fill = gender)) +
+  geom_boxplot(alpha = 0.8) +
+  labs(
+    title = "Age distribution by gender (L858R, Oxytocin signaling pathway: CDKN1A)",
+    x = "Gender",
+    y = "Age (years)"
+  ) +
+  theme_minimal() +
+  theme(legend.position = "none")
+
+View(ko_egfr_comp) # has the p-calue and FDRp.value for pre-post KO comparison with wilcoxon
+
+
 
 
 
