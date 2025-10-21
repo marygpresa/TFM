@@ -93,32 +93,43 @@ print(dndsout$nbreg$theta)
 
 # Genes under positive selection plot
 ## Extract the data for plotting
-names_to_plot <- dndsout$globaldnds$name
-mle_values <- dndsout$globaldnds$mle
+#names_to_plot <- dndsout$globaldnds$name
+#mle_values <- dndsout$globaldnds$mle
 
-# global dN/dS ratios 
-ggplot(globaldnds, aes(x = name, y = mle, fill = name)) +
-  geom_col(width = 0.7) +
+#plot MLE 
+plotdf <- dndsout$globaldnds %>%
+  filter(name != "wall") %>%  # remove overall summary
+  mutate(name = recode(name,
+                       "wmis" = "Missense",
+                       "wnon" = "Nonsense",
+                       "wspl" = "Splice-site",
+                       "wtru" = "Truncating"))
+
+# Plot ω (dN/dS MLE) with 95% CIs
+ggplot(plotdf, aes(x = name, y = mle, fill = name)) +
+  geom_col() +
+  geom_errorbar(aes(ymin = cilow, ymax = cihigh), width = 0.15) +
   geom_hline(yintercept = 1, linetype = "dashed", color = "red") +
-  theme_minimal(base_size = 14) +
-  labs(title = "Global dN/dS Ratios in TCGA-LUAD",
-       x = "Mutation",
-       y = "dN/dS (MLE)") +
-  theme(legend.position = "none")
+  labs(
+    x = "Mutation Type",
+    y = expression(omega~"(dN/dS MLE)"),
+    title = "Selection Pressure by Mutation Type (dNdScv)"
+  ) +
+  theme_minimal(base_size = 14)
 
 # Genes under positive selection (likely cancer drivers)
 sel_cv <- dndsout$sel_cv
 sig_genes <- sel_cv[sel_cv$qglobal_cv < 0.1, ]   # FDR < 10% (false discovery rate cutoff)
 head(sig_genes)
 write.csv(sel_cv, file = "sel_cv_dNdScv.csv", row.names = FALSE)
-
+View(sel_cv)
 # volcano plot significance vs effect
 # Identify the extreme outlier(s)
 extreme_gene <- sel_cv[which.max(sel_cv$wmis_cv), ]
 
 # Volcano plot
 sig_thresh <- 0.1 # Significance threshold
-sel_cv$Extreme <- sel_cv$wmis_cv > 100 | -log10(sel_cv$qglobal_cv) > 12 # Add a flag for extreme points
+sel_cv$Extreme <- sel_cv$wmis_cv > 100 | -log10(sel_cv$qglobal_cv) > 15 # Add a flag for extreme points
 
 ggplot(sel_cv, aes(x = wmis_cv, y = -log10(qglobal_cv))) +
   # all genes
@@ -171,7 +182,7 @@ write.csv(sig_genes[, c("gene_name", "wmis_cv", "qglobal_cv")],
 # types of mutations
 dim(dndsout$annotmuts)
 head(dndsout$annotmuts)
-
+View(dndsout$annotmuts)
 mut_counts <- table(dndsout$annotmuts$impact)
 barplot(mut_counts, las = 2, col = "steelblue",
         main = "Distribution of mutation consequences",
